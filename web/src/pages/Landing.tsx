@@ -1,6 +1,9 @@
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Mic, Users, Radio, Phone, Webhook, Database, Search, ArrowRight } from "lucide-react";
+import {
+  Mic, Users, Radio, Phone, Webhook, Database, Search, ArrowRight,
+  Bot, PhoneForwarded, ThumbsUp, GitMerge, RotateCcw, Clock, ShieldBan, HeartPulse,
+} from "lucide-react";
 import { ThreeHero } from "../components/hero/ThreeHero";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
@@ -31,6 +34,49 @@ const PILLARS = [
   },
 ];
 
+const AGENTS = [
+  {
+    icon: Bot,
+    title: "Autonomous Dial Engine",
+    body: "Opt-in per requisition/search. New candidates get dialed the moment they're added — no manual \"Call\" click needed.",
+  },
+  {
+    icon: PhoneForwarded,
+    title: "Batch-Sourcing Agent",
+    body: "The instant a Talent Search sweep finishes, it auto-dials the top matches immediately if autonomous mode is on.",
+  },
+  {
+    icon: ThumbsUp,
+    title: "Auto-Triage Agent",
+    body: "Reads Hunar's own extracted recommendation/interest field and tags each candidate advance / hold / reject — no separate AI call.",
+  },
+  {
+    icon: GitMerge,
+    title: "Cross-Pipeline Sync Agent",
+    body: "A Talent Search reachout that comes back interested is automatically mirrored into the matching Hiring requisition.",
+  },
+  {
+    icon: RotateCcw,
+    title: "Smart Retry Agent",
+    body: "A \"maybe later\" result schedules one more autonomous attempt a few days out instead of just sitting there.",
+  },
+  {
+    icon: Clock,
+    title: "Guardrail Requeue Agent",
+    body: "Autonomous runs simply don't fire outside allowed calling hours — the next scheduled run picks the queue back up.",
+  },
+  {
+    icon: ShieldBan,
+    title: "Do-Not-Call Guard",
+    body: "The moment a candidate says not to contact them again, that phone number is blocked from every future campaign.",
+  },
+  {
+    icon: HeartPulse,
+    title: "Requisition Health Monitor",
+    body: "A passive watcher that flags a stalled pipeline or a low advance rate as a banner — no dialing of its own.",
+  },
+];
+
 const INFRA = [
   { icon: Phone, title: "Real Hunar Voice AI", body: "Every call — hiring screen or reachout — is placed through Hunar's live /calls API with a purpose-built agent." },
   { icon: Webhook, title: "Signed webhooks", body: "call_status_updated, call_recording_done, call_result_done, call_summary — verified with HMAC-SHA256 before anything is written." },
@@ -51,6 +97,7 @@ export function Landing() {
           </div>
           <nav className="hidden items-center gap-6 text-sm text-on-surface-variant md:flex">
             <a href="#pillars" className="hover:text-on-surface">Product</a>
+            <a href="#agents" className="hover:text-on-surface">Autonomous Agents</a>
             <a href="#infra" className="hover:text-on-surface">Architecture</a>
           </nav>
           <div className="flex items-center gap-2">
@@ -138,6 +185,40 @@ export function Landing() {
                 </Button>
               </Link>
             </Card>
+            </motion.div>
+          ))}
+        </div>
+      </section>
+
+      <section id="agents" className="relative z-10 mx-auto max-w-6xl px-6 pb-20">
+        <div className="mb-10 text-center">
+          <span className="text-xs font-semibold uppercase tracking-wider text-primary">
+            Autonomous Agents
+          </span>
+          <h2 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
+            Rule-based automation, not a bolted-on chatbot
+          </h2>
+          <p className="mx-auto mt-3 max-w-2xl text-sm leading-relaxed text-on-surface-variant">
+            Every agent below reads fields Hunar's own voice agent already extracts from the call —
+            no separate LLM API key, no hidden reasoning step. Toggle "Autonomous Dial Engine" on a
+            requisition or search to turn all of this on for it.
+          </p>
+        </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {AGENTS.map((a, i) => (
+            <motion.div
+              key={a.title}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-60px" }}
+              transition={{ duration: 0.4, delay: i * 0.06 }}
+              className="flex flex-col gap-2 rounded-2xl border border-outline-variant/30 bg-surface-container-lowest p-4"
+            >
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary-fixed text-on-primary-fixed">
+                <a.icon className="h-4 w-4" />
+              </div>
+              <div className="text-sm font-medium">{a.title}</div>
+              <p className="text-xs leading-relaxed text-on-surface-variant">{a.body}</p>
             </motion.div>
           ))}
         </div>

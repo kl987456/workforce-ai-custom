@@ -68,40 +68,44 @@ export function AutonomousPanel({ campaign, onUpdated }: { campaign: Campaign; o
   }
 
   return (
-    <div className="flex items-center gap-2 rounded-xl border border-outline-variant/30 bg-surface-container-lowest px-3 py-2">
-      <Bot className="h-4 w-4 shrink-0 text-primary" />
-      <div className="min-w-0 flex-1">
-        <div className="text-xs font-semibold">Autonomous Dial Engine</div>
-        <div className="truncate text-[10px] text-on-surface-variant">
-          {campaign.autonomous_enabled
-            ? "On — new candidates are dialed automatically."
-            : "Off — calls need a manual trigger."}
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-outline-variant/30 bg-surface-container-lowest px-3 py-2">
+      <div className="flex min-w-[180px] flex-1 items-center gap-2">
+        <Bot className="h-4 w-4 shrink-0 text-primary" />
+        <div className="min-w-0">
+          <div className="text-xs font-semibold">Autonomous Dial Engine</div>
+          <div className="text-[10px] text-on-surface-variant">
+            {campaign.autonomous_enabled
+              ? "On — new candidates are dialed automatically."
+              : "Off — calls need a manual trigger."}
+          </div>
         </div>
       </div>
-      {campaign.autonomous_enabled && (
-        <Button size="sm" variant="outline" onClick={runNow} disabled={loading} className="shrink-0 gap-1.5">
-          {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Zap className="h-3 w-3" />} Run now
-        </Button>
-      )}
-      <button
-        type="button"
-        role="switch"
-        aria-checked={campaign.autonomous_enabled}
-        aria-label="Toggle autonomous dialing"
-        onClick={() => handleToggle(!campaign.autonomous_enabled)}
-        disabled={loading}
-        className={cn(
-          "relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:opacity-50",
-          campaign.autonomous_enabled ? "bg-primary-container" : "bg-outline-variant/50"
+      <div className="flex shrink-0 items-center gap-2">
+        {campaign.autonomous_enabled && (
+          <Button size="sm" variant="outline" onClick={runNow} disabled={loading} className="gap-1.5">
+            {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Zap className="h-3 w-3" />} Run now
+          </Button>
         )}
-      >
-        <span
+        <button
+          type="button"
+          role="switch"
+          aria-checked={campaign.autonomous_enabled}
+          aria-label="Toggle autonomous dialing"
+          onClick={() => handleToggle(!campaign.autonomous_enabled)}
+          disabled={loading}
           className={cn(
-            "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform",
-            campaign.autonomous_enabled ? "translate-x-5" : "translate-x-0.5"
+            "relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:opacity-50",
+            campaign.autonomous_enabled ? "bg-primary-container" : "bg-outline-variant/50"
           )}
-        />
-      </button>
+        >
+          <span
+            className={cn(
+              "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform",
+              campaign.autonomous_enabled ? "translate-x-5" : "translate-x-0.5"
+            )}
+          />
+        </button>
+      </div>
 
       <Modal
         open={confirmOpen}
