@@ -29,7 +29,17 @@ export function useCampaignWorkspace(campaignId: string | null) {
   }, [campaignId, refresh]);
 
   useEffect(() => {
-    const hasActive = calls.some((c) => !TERMINAL_STATUSES.has(c.status));
+    // Hunar delivers call_status_updated, call_recording_done, and
+    // call_result_done as separate sequential webhooks — status can flip to
+    // COMPLETED many seconds before the result payload arrives. Keep polling
+    // a completed-but-resultless call so the extracted answers actually show
+    // up, without polling forever for statuses that will never get a result
+    // (FAILED/NOT_CONNECTED/CANCELLED never had a conversation to extract).
+    const hasActive = calls.some((c) => {
+      if (!TERMINAL_STATUSES.has(c.status)) return true;
+      if (c.status === "COMPLETED" && !c.result) return true;
+      return false;
+    });
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
