@@ -8,6 +8,6 @@
     { "src": "/(.*)", "dest": "/index.html" }
   ],
   "crons": [
-    { "path": "/api/autonomous/tick", "schedule": "0 * * * *" }
+    { "path": "/api/autonomous/tick", "schedule": "0 9 * * *" }
   ]
 }
