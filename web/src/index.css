@@ -1,0 +1,167 @@
+@import "tailwindcss";
+
+/* Design tokens lifted directly from the Stitch mockups (Material-3-style
+   naming) so this custom build matches the provided designs exactly. */
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", monospace;
+
+  --color-primary: #004ac6;
+  --color-primary-container: #2563eb;
+  --color-on-primary: #ffffff;
+  --color-on-primary-container: #eeefff;
+
+  --color-secondary: #006591;
+  --color-secondary-container: #39b8fd;
+  --color-on-secondary: #ffffff;
+
+  --color-tertiary: #006242;
+  --color-tertiary-container: #007d55;
+  --color-on-tertiary: #ffffff;
+  --color-tertiary-fixed: #6ffbbe;
+  --color-on-tertiary-fixed: #002113;
+
+  --color-error: #ba1a1a;
+  --color-error-container: #ffdad6;
+  --color-on-error: #ffffff;
+  --color-on-error-container: #93000a;
+
+  --color-background: #f8f9ff;
+  --color-surface: #f8f9ff;
+  --color-surface-bright: #f8f9ff;
+  --color-surface-dim: #cbdbf5;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #eff4ff;
+  --color-surface-container: #e5eeff;
+  --color-surface-container-high: #dce9ff;
+  --color-surface-container-highest: #d3e4fe;
+
+  --color-on-surface: #0b1c30;
+  --color-on-surface-variant: #434655;
+  --color-outline: #737686;
+  --color-outline-variant: #c3c6d7;
+
+  --color-inverse-surface: #213145;
+  --color-inverse-on-surface: #eaf1ff;
+
+  --color-primary-fixed: #dbe1ff;
+  --color-primary-fixed-dim: #b4c5ff;
+  --color-on-primary-fixed: #00174b;
+
+  --color-secondary-fixed: #c9e6ff;
+  --color-on-secondary-fixed: #001e2f;
+
+  --radius-xs: 0.125rem;
+  --radius-md: 0.25rem;
+  --radius-lg: 0.5rem;
+  --radius-full: 0.75rem;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-background);
+  color: var(--color-on-surface);
+  -webkit-font-smoothing: antialiased;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-outline-variant);
+  border-radius: 999px;
+}
+
+/* ---------------------------------------------------------------------- */
+/* "Voice Ops Console" — a dark cockpit theme scoped to the Hiring         */
+/* Assistant route. Every workforce/* and ui/* component is already built  */
+/* on top of these token classes (bg-surface-container-lowest, text-on-   */
+/* surface, border-outline-variant, ...), so overriding the variables      */
+/* inside this class is enough to reskin the whole route — no component   */
+/* needs to know which theme it's rendering in.                           */
+/* ---------------------------------------------------------------------- */
+.theme-console {
+  color-scheme: dark;
+
+  --color-background: #05080e;
+  --color-surface: #05080e;
+  --color-surface-bright: #0d1520;
+  --color-surface-dim: #05080e;
+  --color-surface-container-lowest: #0a0f1a;
+  --color-surface-container-low: #0d1520;
+  --color-surface-container: #121c2b;
+  --color-surface-container-high: #172335;
+  --color-surface-container-highest: #1d2b40;
+
+  --color-on-surface: #dff6ff;
+  --color-on-surface-variant: #7fa0b8;
+  --color-outline: #35516a;
+  --color-outline-variant: #17263a;
+
+  --color-primary: #22d3ee;
+  --color-primary-container: #0e7490;
+  --color-on-primary: #00141a;
+  --color-on-primary-container: #d7f7ff;
+
+  --color-secondary: #38bdf8;
+  --color-secondary-container: #0369a1;
+  --color-on-secondary: #001622;
+  --color-secondary-fixed: #0c2233;
+  --color-on-secondary-fixed: #7fd8ff;
+
+  --color-tertiary: #4ade80;
+  --color-tertiary-container: #15803d;
+  --color-on-tertiary: #04140a;
+  --color-tertiary-fixed: #0d2318;
+  --color-on-tertiary-fixed: #6ffbbe;
+
+  --color-error: #fb7185;
+  --color-error-container: #3f0d16;
+  --color-on-error: #1a0004;
+  --color-on-error-container: #ffb4c0;
+
+  --color-primary-fixed: #0c2733;
+  --color-primary-fixed-dim: #0e3746;
+  --color-on-primary-fixed: #7fe8ff;
+
+  --color-inverse-surface: #dff6ff;
+  --color-inverse-on-surface: #0a0f1a;
+}
+
+.bg-console-grid {
+  background-image:
+    linear-gradient(var(--color-outline-variant) 1px, transparent 1px),
+    linear-gradient(90deg, var(--color-outline-variant) 1px, transparent 1px);
+  background-size: 34px 34px;
+  background-position: -1px -1px;
+}
+
+.bg-graph-dots {
+  background-image: radial-gradient(var(--color-outline-variant) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+@keyframes ticker-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes scanline-sweep {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(100%);
+  }
+}
