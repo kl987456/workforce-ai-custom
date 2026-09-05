@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { X } from "lucide-react";
 
@@ -19,7 +20,13 @@ export function Modal({
   footer?: ReactNode;
   wide?: boolean;
 }) {
-  return (
+  // Rendered via a portal straight onto document.body — some cards in this
+  // app apply a framer-motion transform (the 3D tilt effect) even at rest,
+  // and CSS creates a new containing block for any `position: fixed`
+  // descendant of a transformed ancestor. Without the portal, a modal opened
+  // from inside one of those cards would be positioned relative to the card,
+  // not the viewport, and could render off-screen or clipped.
+  return createPortal(
     <AnimatePresence>
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -61,6 +68,7 @@ export function Modal({
           </motion.div>
         </div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }
