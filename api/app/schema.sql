@@ -89,3 +89,24 @@ CREATE TABLE IF NOT EXISTS custom_app.capp_webhook_events (
 CREATE INDEX IF NOT EXISTS idx_capp_candidates_campaign ON custom_app.capp_candidates(campaign_id);
 CREATE INDEX IF NOT EXISTS idx_capp_calls_campaign ON custom_app.capp_calls(campaign_id);
 CREATE INDEX IF NOT EXISTS idx_capp_calls_candidate ON custom_app.capp_calls(candidate_id);
+
+-- Autonomous Dial Engine: an opt-in per-requisition/search toggle. When on,
+-- new candidates get dialed automatically (see routers/autonomous.py) instead
+-- of requiring a manual "Call"/"Trigger Reachout" click — rule-based on the
+-- structured fields Hunar already returns, no LLM/agent API key involved.
+ALTER TABLE custom_app.capp_campaigns ADD COLUMN IF NOT EXISTS autonomous_enabled BOOLEAN NOT NULL DEFAULT false;
+
+-- Smart Retry Agent: a "maybe later"/"hold" result schedules one more
+-- autonomous attempt a few days out instead of just sitting there.
+ALTER TABLE custom_app.capp_candidates ADD COLUMN IF NOT EXISTS next_follow_up_at TIMESTAMPTZ;
+
+-- Do-Not-Call Guard: set the moment a candidate's result says not to
+-- contact them again (matched by phone, so it holds across every
+-- campaign/candidate row for that number, not just this one).
+ALTER TABLE custom_app.capp_candidates ADD COLUMN IF NOT EXISTS do_not_contact BOOLEAN NOT NULL DEFAULT false;
+
+-- Cross-Pipeline Sync Agent adds candidates with source REACHOUT_SYNC —
+-- widen the existing check constraint to allow it.
+ALTER TABLE custom_app.capp_candidates DROP CONSTRAINT IF EXISTS capp_candidates_source_check;
+ALTER TABLE custom_app.capp_candidates ADD CONSTRAINT capp_candidates_source_check
+  CHECK (source IN ('MANUAL', 'SEEDED_SEARCH', 'REACHOUT_SYNC'));

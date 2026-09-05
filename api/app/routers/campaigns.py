@@ -8,7 +8,9 @@ from ..lib.agent_templates import VOICE_PERSONAS
 from ..lib.ensure_agent import get_or_create_agent
 from ..lib.people_search import parse_job_description, search_candidates
 from ..lib.phone import E164_REGEX
+from ..lib.triage import derive_triage
 from ..serialize import row_to_dict
+from .autonomous import run_campaign_dials
 
 router = APIRouter(prefix="/api/campaigns", tags=["campaigns"])
 
@@ -28,6 +30,11 @@ class CreateCampaignBody(BaseModel):
     location: Optional[str] = None
     jobDescription: str = Field(min_length=10)
     voicePersona: Optional[str] = None
+    autonomousEnabled: bool = False
+
+
+class SetAutonomousBody(BaseModel):
+    autonomousEnabled: bool
 
 
 class AddCandidateBody(BaseModel):
@@ -65,8 +72,9 @@ async def create_campaign(body: CreateCampaignBody):
         agent = await get_or_create_agent(purpose, body.voicePersona) if body.voicePersona else None
         row = await conn.fetchrow(
             """
-            INSERT INTO custom_app.capp_campaigns (kind, title, department, location, job_description, parsed_filters, agent_id)
-            VALUES ($1,$2,$3,$4,$5,$6,$7)
+            INSERT INTO custom_app.capp_campaigns
+              (kind, title, department, location, job_description, parsed_filters, agent_id, autonomous_enabled)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
             RETURNING *
             """,
             body.kind,
@@ -76,6 +84,7 @@ async def create_campaign(body: CreateCampaignBody):
             body.jobDescription,
             json.dumps(parsed),
             agent["id"] if agent else None,
+            body.autonomousEnabled,
         )
         campaign = row_to_dict(row, ("parsed_filters",))
         campaign["voice_persona"] = agent["voice_persona"] if agent else None
@@ -112,7 +121,14 @@ async def create_campaign(body: CreateCampaignBody):
                 rows = await conn.fetch(query, *args)
                 seeded = [row_to_dict(row, ("skills", "profile")) for row in rows]
 
-        return {"campaign": campaign, "candidates": seeded}
+        dial_summary = None
+        if body.autonomousEnabled:
+            # Batch-Sourcing Agent: don't wait for the next tick — a fresh
+            # search in autonomous mode starts dialing its top matches
+            # immediately.
+            dial_summary = await run_campaign_dials(conn, dict(row))
+
+        return {"campaign": campaign, "candidates": seeded, "autonomousDial": dial_summary}
 
 
 @router.get("/{campaign_id}")
@@ -129,9 +145,10 @@ async def get_campaign(campaign_id: str):
         )
         call_rows = await conn.fetch(
             """
-            SELECT c.*, row_to_json(cand.*) AS candidate_json
+            SELECT c.*, agents.purpose AS agent_purpose, row_to_json(cand.*) AS candidate_json
             FROM custom_app.capp_calls c
             LEFT JOIN custom_app.capp_candidates cand ON cand.id = c.candidate_id
+            LEFT JOIN custom_app.capp_agents agents ON agents.id = c.agent_id
             WHERE c.campaign_id = $1
             ORDER BY c.created_at DESC
             """,
@@ -139,9 +156,14 @@ async def get_campaign(campaign_id: str):
         )
 
     calls = []
+    triages = []  # (status, updated_at as real datetime, triage) — for health, before datetime->str conversion
     for r in call_rows:
         d = row_to_dict(r, ("result",))
         cand_json = d.pop("candidate_json", None)
+        purpose = d.pop("agent_purpose", None)
+        triage = derive_triage(d.get("result"), purpose) if purpose else None
+        d["triage"] = triage
+        triages.append((r["status"], r["updated_at"], triage))
         if cand_json:
             cand = json.loads(cand_json) if isinstance(cand_json, str) else cand_json
             if cand.get("skills") and isinstance(cand["skills"], str):
@@ -153,7 +175,54 @@ async def get_campaign(campaign_id: str):
         "campaign": row_to_dict(crow, ("parsed_filters",)),
         "candidates": [row_to_dict(r, ("skills", "profile")) for r in candidate_rows],
         "calls": calls,
+        "health": _compute_health(candidate_rows, triages),
     }
+
+
+def _compute_health(candidate_rows, triages: list) -> dict:
+    """Requisition Health Monitor — a passive read of existing data, no
+    dialing of its own. Flags a pipeline that's stalled or trending badly so
+    it surfaces as a banner instead of silently sitting there."""
+    from datetime import datetime, timedelta, timezone
+
+    completed_triaged = [t for (status, _, t) in triages if status == "COMPLETED" and t]
+    advance_rate = (
+        len([t for t in completed_triaged if t == "advance"]) / len(completed_triaged)
+        if completed_triaged
+        else None
+    )
+
+    stalled = False
+    if candidate_rows and triages:
+        latest = max((u if u.tzinfo else u.replace(tzinfo=timezone.utc)) for (_, u, _) in triages)
+        stalled = (datetime.now(timezone.utc) - latest) > timedelta(hours=24)
+    elif candidate_rows and not triages:
+        stalled = True
+
+    return {
+        "stalled": stalled,
+        "lowAdvanceRate": advance_rate is not None and len(completed_triaged) >= 3 and advance_rate < 0.2,
+        "advanceRate": advance_rate,
+    }
+
+
+@router.patch("/{campaign_id}/autonomous")
+async def set_autonomous(campaign_id: str, body: SetAutonomousBody):
+    pool = await db.get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "UPDATE custom_app.capp_campaigns SET autonomous_enabled = $1 WHERE id = $2 RETURNING *",
+            body.autonomousEnabled,
+            campaign_id,
+        )
+        if not row:
+            raise HTTPException(404, "Campaign not found")
+        dial_summary = None
+        if body.autonomousEnabled:
+            # Turning it on for an existing requisition/search immediately
+            # sweeps whoever's already sitting there not-yet-called.
+            dial_summary = await run_campaign_dials(conn, dict(row))
+    return {"campaign": row_to_dict(row, ("parsed_filters",)), "autonomousDial": dial_summary}
 
 
 @router.delete("/{campaign_id}")

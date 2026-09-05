@@ -7,6 +7,7 @@ from .. import config, db
 from ..lib import hunar
 from ..lib.ensure_agent import get_or_create_default_agent
 from ..lib.phone import E164_REGEX
+from ..lib.triage import derive_triage
 from ..serialize import row_to_dict
 
 
@@ -46,6 +47,15 @@ async def _place_call(conn, candidate, agent, campaign_id: Optional[str], phone_
     phone = phone_override or candidate["phone"]
     if not E164_REGEX.match(phone):
         return None, "Phone number must be in E.164 format, e.g. +917411771293"
+
+    # Do-Not-Call Guard: a prior call's result said not to contact this
+    # number again — honor that everywhere a call gets placed, manual or
+    # autonomous, regardless of which candidate/campaign row it's attached to.
+    blocked = await conn.fetchval(
+        "SELECT 1 FROM custom_app.capp_candidates WHERE phone = $1 AND do_not_contact = true LIMIT 1", phone
+    )
+    if blocked:
+        return None, "This number has opted out of further contact (do-not-call)"
 
     call_row = await conn.fetchrow(
         """
@@ -107,17 +117,29 @@ async def _place_call(conn, candidate, agent, campaign_id: Optional[str], phone_
         return None, str(e)
 
 
+CALLS_SELECT = """
+    SELECT calls.*, agents.purpose AS agent_purpose
+    FROM custom_app.capp_calls calls
+    LEFT JOIN custom_app.capp_agents agents ON agents.id = calls.agent_id
+"""
+
+
+def _serialize_call(row) -> dict:
+    d = row_to_dict(row, ("result",))
+    purpose = d.pop("agent_purpose", None)
+    d["triage"] = derive_triage(d.get("result"), purpose) if purpose else None
+    return d
+
+
 @router.get("")
 async def list_calls(campaignId: Optional[str] = None):
     pool = await db.get_pool()
     async with pool.acquire() as conn:
         if campaignId:
-            rows = await conn.fetch(
-                "SELECT * FROM custom_app.capp_calls WHERE campaign_id = $1 ORDER BY created_at DESC", campaignId
-            )
+            rows = await conn.fetch(CALLS_SELECT + " WHERE calls.campaign_id = $1 ORDER BY calls.created_at DESC", campaignId)
         else:
-            rows = await conn.fetch("SELECT * FROM custom_app.capp_calls ORDER BY created_at DESC")
-    return {"calls": [row_to_dict(r, ("result",)) for r in rows]}
+            rows = await conn.fetch(CALLS_SELECT + " ORDER BY calls.created_at DESC")
+    return {"calls": [_serialize_call(r) for r in rows]}
 
 
 @router.post("", status_code=201)

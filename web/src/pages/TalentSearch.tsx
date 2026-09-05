@@ -8,6 +8,8 @@ import { staggerContainer, staggerItem } from "../lib/motion";
 import { RequisitionSwitcher } from "../components/workforce/RequisitionSwitcher";
 import { SkillGraph } from "../components/workforce/SkillGraph";
 import { PersonaPicker } from "../components/workforce/PersonaPicker";
+import { AutonomousPanel } from "../components/workforce/AutonomousPanel";
+import { HealthBanner } from "../components/workforce/HealthBanner";
 import { CandidateCard } from "../components/workforce/CandidateCard";
 import { ConversationFeed } from "../components/workforce/ConversationFeed";
 import { InsightsPanel } from "../components/workforce/InsightsPanel";
@@ -24,6 +26,7 @@ function QueryBar({ onSearched }: { onSearched: (id: string) => void }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [voicePersona, setVoicePersona] = useState("ROY");
+  const [autonomousEnabled, setAutonomousEnabled] = useState(false);
   const [loading, setLoading] = useState(false);
   const toast = useToast();
 
@@ -35,8 +38,12 @@ function QueryBar({ onSearched }: { onSearched: (id: string) => void }) {
     setLoading(true);
     try {
       const finalTitle = title || description.slice(0, 60);
-      const data = await api.createCampaign({ kind: "TALENT_SEARCH", title: finalTitle, jobDescription: description, voicePersona });
-      toast.success(`Found ${data.candidates.length} matching candidates`);
+      const data = await api.createCampaign({ kind: "TALENT_SEARCH", title: finalTitle, jobDescription: description, voicePersona, autonomousEnabled });
+      const dialed = data.autonomousDial?.dialed ?? 0;
+      toast.success(
+        `Found ${data.candidates.length} matching candidates`,
+        dialed > 0 ? `Autonomous dial engine already reached out to ${dialed} of them.` : undefined
+      );
       setTitle("");
       setDescription("");
       onSearched(data.campaign.id);
@@ -71,6 +78,10 @@ function QueryBar({ onSearched }: { onSearched: (id: string) => void }) {
         </Button>
       </div>
       <PersonaPicker value={voicePersona} onChange={setVoicePersona} />
+      <label className="flex items-center gap-2 text-xs text-on-surface-variant">
+        <input type="checkbox" checked={autonomousEnabled} onChange={(e) => setAutonomousEnabled(e.target.checked)} className="h-3.5 w-3.5 accent-primary-container" />
+        Enable autonomous dialing — auto-reach out to top matches the moment the sweep finishes
+      </label>
     </Card>
   );
 }
@@ -82,7 +93,7 @@ export function TalentSearch() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkDialing, setBulkDialing] = useState(false);
   const toast = useToast();
-  const { campaign, candidates, calls, loading, refresh } = useCampaignWorkspace(activeId);
+  const { campaign, candidates, calls, health, loading, refresh } = useCampaignWorkspace(activeId);
 
   function bump() {
     setRefreshToken((t) => t + 1);
@@ -168,6 +179,13 @@ export function TalentSearch() {
       />
 
       {activeId && loading && <div className="h-64 animate-pulse rounded-2xl bg-surface-container-low" />}
+
+      {activeId && campaign && !loading && (
+        <>
+          <AutonomousPanel campaign={campaign} onUpdated={bump} />
+          <HealthBanner health={health} />
+        </>
+      )}
 
       {activeId && campaign && !loading && candidates.length > 0 && (
         <div>

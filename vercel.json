@@ -6,5 +6,8 @@
     { "src": "/api/(.*)", "dest": "/api/index.py" },
     { "handle": "filesystem" },
     { "src": "/(.*)", "dest": "/index.html" }
+  ],
+  "crons": [
+    { "path": "/api/autonomous/tick", "schedule": "0 * * * *" }
   ]
 }

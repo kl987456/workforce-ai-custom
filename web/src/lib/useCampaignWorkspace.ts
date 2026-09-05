@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "./api";
-import { TERMINAL_STATUSES, type Campaign, type Candidate, type Call } from "./types";
+import { TERMINAL_STATUSES, type Campaign, type CampaignHealth, type Candidate, type Call } from "./types";
 
 export function useCampaignWorkspace(campaignId: string | null) {
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [calls, setCalls] = useState<Call[]>([]);
+  const [health, setHealth] = useState<CampaignHealth | null>(null);
   const [loading, setLoading] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -15,6 +16,7 @@ export function useCampaignWorkspace(campaignId: string | null) {
     setCampaign(data.campaign);
     setCandidates(data.candidates);
     setCalls(data.calls);
+    setHealth(data.health);
   }, [campaignId]);
 
   useEffect(() => {
@@ -22,6 +24,7 @@ export function useCampaignWorkspace(campaignId: string | null) {
       setCampaign(null);
       setCandidates([]);
       setCalls([]);
+      setHealth(null);
       return;
     }
     setLoading(true);
@@ -52,5 +55,5 @@ export function useCampaignWorkspace(campaignId: string | null) {
     };
   }, [calls, campaignId, refresh]);
 
-  return { campaign, candidates, calls, loading, refresh };
+  return { campaign, candidates, calls, health, loading, refresh };
 }

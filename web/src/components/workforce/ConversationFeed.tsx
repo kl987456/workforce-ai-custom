@@ -1,6 +1,7 @@
 import { Bot, Clock, PhoneOff } from "lucide-react";
 import { Avatar } from "./Avatar";
 import { CallStatusBadge } from "./CallStatusBadge";
+import { TriageBadge } from "./TriageBadge";
 import type { Call } from "../../lib/types";
 
 function formatDuration(seconds: number | null) {
@@ -34,6 +35,7 @@ export function ConversationFeed({ call }: { call: Call }) {
             <div className="font-medium text-on-surface">{name}</div>
             <div className="flex items-center gap-2 text-xs text-on-surface-variant">
               <CallStatusBadge status={call.status} />
+              <TriageBadge triage={call.triage} />
               {call.answered_by && <span className="font-mono">answered by {call.answered_by.toLowerCase()}</span>}
             </div>
           </div>

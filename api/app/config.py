@@ -17,3 +17,7 @@ _vercel_url = os.environ.get("VERCEL_URL")
 _default_base_url = f"https://{_vercel_url}" if _vercel_url else "http://localhost:8000"
 APP_BASE_URL = os.environ.get("APP_BASE_URL", _default_base_url).rstrip("/")
 CORS_ORIGINS = [o.strip() for o in os.environ.get("CORS_ORIGINS", "*").split(",")]
+# Verifies Vercel Cron's request to /api/autonomous/tick — Vercel sends
+# `Authorization: Bearer <CRON_SECRET>` automatically when this env var is
+# set, so nobody else can trigger autonomous dialing by hitting the URL.
+CRON_SECRET = os.environ.get("CRON_SECRET", "")

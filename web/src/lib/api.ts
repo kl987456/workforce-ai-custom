@@ -1,4 +1,4 @@
-import type { Campaign, Candidate, Call } from "./types";
+import type { AutonomousDialSummary, Campaign, CampaignHealth, Candidate, Call } from "./types";
 
 // Deployed builds serve the API from the same origin (see /vercel.json
 // rewrites) — VITE_API_URL is only needed for local dev, where the Vite
@@ -39,19 +39,29 @@ export const api = {
     location?: string;
     jobDescription: string;
     voicePersona?: string;
+    autonomousEnabled?: boolean;
   }) =>
-    req<{ campaign: Campaign; candidates: Candidate[] }>("/api/campaigns", {
-      method: "POST",
-      body: JSON.stringify(body),
-    }),
+    req<{ campaign: Campaign; candidates: Candidate[]; autonomousDial: AutonomousDialSummary | null }>(
+      "/api/campaigns",
+      { method: "POST", body: JSON.stringify(body) }
+    ),
 
   getCampaign: (id: string) =>
-    req<{ campaign: Campaign; candidates: Candidate[]; calls: Call[] }>(
+    req<{ campaign: Campaign; candidates: Candidate[]; calls: Call[]; health: CampaignHealth }>(
       `/api/campaigns/${id}`
     ),
 
   deleteCampaign: (id: string) =>
     req<{ ok: true }>(`/api/campaigns/${id}`, { method: "DELETE" }),
+
+  setAutonomous: (id: string, autonomousEnabled: boolean) =>
+    req<{ campaign: Campaign; autonomousDial: AutonomousDialSummary | null }>(
+      `/api/campaigns/${id}/autonomous`,
+      { method: "PATCH", body: JSON.stringify({ autonomousEnabled }) }
+    ),
+
+  runAutonomousNow: (id: string) =>
+    req<AutonomousDialSummary>(`/api/autonomous/run/${id}`, { method: "POST" }),
 
   addCandidate: (
     campaignId: string,

@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import config, db
-from .routers import campaigns, calls, webhooks, health
+from .routers import campaigns, calls, webhooks, health, autonomous
 
 
 @asynccontextmanager
@@ -26,6 +26,7 @@ app.include_router(health.router)
 app.include_router(campaigns.router)
 app.include_router(calls.router)
 app.include_router(webhooks.router)
+app.include_router(autonomous.router)
 
 
 @app.get("/api")

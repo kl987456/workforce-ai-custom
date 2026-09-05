@@ -7,6 +7,7 @@ export interface Campaign {
   job_description: string;
   voice_persona: string | null;
   persona_name: string | null;
+  autonomous_enabled: boolean;
   created_at: string;
 }
 
@@ -22,9 +23,26 @@ export interface Candidate {
   years_experience: number | null;
   skills: string[];
   match_score: number | null;
-  source: "MANUAL" | "SEEDED_SEARCH";
-  profile: { summary?: string; provider?: string } | null;
+  source: "MANUAL" | "SEEDED_SEARCH" | "REACHOUT_SYNC";
+  profile: { summary?: string; provider?: string; reachout_result?: Record<string, unknown> } | null;
+  do_not_contact?: boolean;
+  next_follow_up_at?: string | null;
   created_at: string;
+}
+
+export type Triage = "advance" | "hold" | "reject";
+
+export interface CampaignHealth {
+  stalled: boolean;
+  lowAdvanceRate: boolean;
+  advanceRate: number | null;
+}
+
+export interface AutonomousDialSummary {
+  campaignId: string;
+  dialed: number;
+  errors: { candidateId: string; error: string }[];
+  skipped?: string;
 }
 
 export type CallStatus =
@@ -52,6 +70,7 @@ export interface Call {
   duration_seconds: number | null;
   recording_url: string | null;
   result: Record<string, unknown> | null;
+  triage: Triage | null;
   created_at: string;
   started_at: string | null;
   ended_at: string | null;

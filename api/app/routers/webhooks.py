@@ -1,12 +1,16 @@
 import json
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
 from .. import config, db
 from ..lib.webhook import verify_hunar_webhook_signature
+from ..lib.triage import derive_triage, wants_follow_up, wants_no_further_contact
+from ..serialize import row_to_dict
 
 router = APIRouter(prefix="/api/webhooks", tags=["webhooks"])
+
+FOLLOW_UP_DELAY = timedelta(days=3)
 
 
 def _parse_dt(v):
@@ -16,6 +20,60 @@ def _parse_dt(v):
         return datetime.fromisoformat(v.replace("Z", "+00:00"))
     except ValueError:
         return None
+
+
+async def _sync_reachout_to_hiring(conn, campaign: dict, candidate: dict, call_result: dict) -> None:
+    """Cross-Pipeline Sync Agent: a Talent Search reachout that came back
+    'advance' gets mirrored into a Hiring requisition — reusing an existing
+    one with the same title, or creating it — so a warm lead doesn't just
+    sit in the search results."""
+    hiring = await conn.fetchrow(
+        "SELECT * FROM custom_app.capp_campaigns WHERE kind = 'HIRING' AND title = $1 LIMIT 1",
+        campaign["title"],
+    )
+    if not hiring:
+        hiring = await conn.fetchrow(
+            """
+            INSERT INTO custom_app.capp_campaigns (kind, title, department, location, job_description, agent_id)
+            VALUES ('HIRING', $1, $2, $3, $4, NULL)
+            RETURNING *
+            """,
+            campaign["title"],
+            campaign["department"],
+            campaign["location"],
+            campaign["job_description"],
+        )
+
+    existing = await conn.fetchrow(
+        "SELECT id FROM custom_app.capp_candidates WHERE campaign_id = $1 AND phone = $2",
+        hiring["id"],
+        candidate["phone"],
+    )
+    if existing:
+        return
+
+    skills = candidate["skills"]
+    if isinstance(skills, str):
+        skills = json.loads(skills)
+
+    await conn.execute(
+        """
+        INSERT INTO custom_app.capp_candidates
+          (campaign_id, name, email, phone, role_title, company, location, years_experience, skills, match_score, source, profile)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'REACHOUT_SYNC',$11)
+        """,
+        hiring["id"],
+        candidate["name"],
+        candidate["email"],
+        candidate["phone"],
+        candidate["role_title"],
+        candidate["company"],
+        candidate["location"],
+        candidate["years_experience"],
+        json.dumps(skills or []),
+        candidate["match_score"],
+        json.dumps({"reachout_result": call_result}),
+    )
 
 
 @router.post("/hunar")
@@ -60,7 +118,7 @@ async def hunar_webhook(request: Request):
         column = "id" if by_request_id else "hunar_call_id"
 
         result = payload.get("result")
-        await conn.execute(
+        updated = await conn.fetchrow(
             f"""
             UPDATE custom_app.capp_calls SET
               status = COALESCE($1, status),
@@ -74,6 +132,7 @@ async def hunar_webhook(request: Request):
               result = COALESCE($9, result),
               updated_at = now()
             WHERE {column} = $10
+            RETURNING *
             """,
             payload.get("status"),
             payload.get("lifecycle_status"),
@@ -86,5 +145,45 @@ async def hunar_webhook(request: Request):
             json.dumps(result) if result else None,
             match_value,
         )
+
+        # The autonomous agents below only have something to do once a
+        # structured result has actually landed (call_result_done) — best
+        # effort, since a failure here shouldn't fail the webhook and trigger
+        # Hunar's own retry logic for what was otherwise a successful delivery.
+        if updated and result:
+            try:
+                candidate = await conn.fetchrow(
+                    "SELECT * FROM custom_app.capp_candidates WHERE id = $1", updated["candidate_id"]
+                )
+                agent = await conn.fetchrow(
+                    "SELECT purpose FROM custom_app.capp_agents WHERE id = $1", updated["agent_id"]
+                )
+                purpose = agent["purpose"] if agent else None
+
+                if candidate and purpose:
+                    if wants_no_further_contact(result):
+                        await conn.execute(
+                            "UPDATE custom_app.capp_candidates SET do_not_contact = true WHERE phone = $1",
+                            candidate["phone"],
+                        )
+                    elif wants_follow_up(result, purpose):
+                        await conn.execute(
+                            "UPDATE custom_app.capp_candidates SET next_follow_up_at = $1 WHERE id = $2",
+                            datetime.now(timezone.utc) + FOLLOW_UP_DELAY,
+                            candidate["id"],
+                        )
+
+                    if (
+                        purpose == "TALENT_REACHOUT"
+                        and derive_triage(result, purpose) == "advance"
+                        and updated["campaign_id"]
+                    ):
+                        campaign = await conn.fetchrow(
+                            "SELECT * FROM custom_app.capp_campaigns WHERE id = $1", updated["campaign_id"]
+                        )
+                        if campaign:
+                            await _sync_reachout_to_hiring(conn, dict(campaign), dict(candidate), result)
+            except Exception as e:  # noqa: BLE001 — deliberately swallow, see comment above
+                print(f"Autonomous post-call processing failed (non-fatal): {e}")
 
     return {"ok": True}

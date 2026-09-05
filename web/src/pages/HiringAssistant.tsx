@@ -13,6 +13,8 @@ import { CanvasWaveform } from "../components/workforce/CanvasWaveform";
 import { CallHealthGauges } from "../components/workforce/CallHealthGauges";
 import { ActivityTicker } from "../components/workforce/ActivityTicker";
 import { PersonaPicker } from "../components/workforce/PersonaPicker";
+import { AutonomousPanel } from "../components/workforce/AutonomousPanel";
+import { HealthBanner } from "../components/workforce/HealthBanner";
 import { Avatar } from "../components/workforce/Avatar";
 import { TriggerCallButton } from "../components/workforce/TriggerCallButton";
 import { Button } from "../components/ui/Button";
@@ -30,6 +32,7 @@ function NewRequisitionModal({ onCreated }: { onCreated: (id: string) => void })
   const [location, setLocation] = useState("");
   const [description, setDescription] = useState("");
   const [voicePersona, setVoicePersona] = useState("NEHA");
+  const [autonomousEnabled, setAutonomousEnabled] = useState(false);
   const [loading, setLoading] = useState(false);
   const toast = useToast();
 
@@ -41,7 +44,7 @@ function NewRequisitionModal({ onCreated }: { onCreated: (id: string) => void })
     setLoading(true);
     try {
       const data = await api.createCampaign({
-        kind: "HIRING", title, department: department || undefined, location: location || undefined, jobDescription: description, voicePersona,
+        kind: "HIRING", title, department: department || undefined, location: location || undefined, jobDescription: description, voicePersona, autonomousEnabled,
       });
       toast.success("Requisition created");
       setOpen(false);
@@ -80,6 +83,10 @@ function NewRequisitionModal({ onCreated }: { onCreated: (id: string) => void })
         </div>
         <textarea className="min-h-24 rounded-xl border border-outline-variant/50 p-3 text-sm" placeholder="Paste the job description here." value={description} onChange={(e) => setDescription(e.target.value)} />
         <PersonaPicker value={voicePersona} onChange={setVoicePersona} />
+        <label className="flex items-center gap-2 text-xs text-on-surface-variant">
+          <input type="checkbox" checked={autonomousEnabled} onChange={(e) => setAutonomousEnabled(e.target.checked)} className="h-3.5 w-3.5 accent-primary-container" />
+          Enable autonomous dialing for this requisition from the start
+        </label>
       </Modal>
     </>
   );
@@ -142,7 +149,7 @@ export function HiringAssistant() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [refreshToken, setRefreshToken] = useState(0);
   const [focusedCandidateId, setFocusedCandidateId] = useState<string | null>(null);
-  const { campaign, candidates, calls, loading, refresh } = useCampaignWorkspace(activeId);
+  const { campaign, candidates, calls, health, loading, refresh } = useCampaignWorkspace(activeId);
 
   function bump() {
     setRefreshToken((t) => t + 1);
@@ -196,6 +203,13 @@ export function HiringAssistant() {
         />
         <NewRequisitionModal onCreated={(id) => { bump(); setActiveId(id); }} />
       </div>
+
+      {activeId && campaign && !loading && (
+        <>
+          <AutonomousPanel campaign={campaign} onUpdated={bump} />
+          <HealthBanner health={health} />
+        </>
+      )}
 
       {activeId && calls.length > 0 && <ActivityTicker calls={calls} />}
 

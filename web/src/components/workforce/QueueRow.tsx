@@ -1,5 +1,6 @@
 import { Avatar } from "./Avatar";
 import { CallStatusBadge } from "./CallStatusBadge";
+import { TriageBadge } from "./TriageBadge";
 import { TriggerCallButton } from "./TriggerCallButton";
 import type { Candidate, Call } from "../../lib/types";
 import { cn } from "../../lib/cn";
@@ -33,13 +34,26 @@ export function QueueRow({
       <div className="flex min-w-0 items-center gap-2.5">
         <Avatar name={candidate.name} size={30} />
         <div className="min-w-0">
-          <div className="truncate text-sm font-medium">{candidate.name}</div>
+          <div className="flex items-center gap-1.5">
+            <span className="truncate text-sm font-medium">{candidate.name}</span>
+            {candidate.source === "REACHOUT_SYNC" && (
+              <span
+                title="Auto-added by the Cross-Pipeline Sync Agent after a Talent Search reachout came back interested"
+                className="shrink-0 rounded-md border border-primary-container/40 px-1 py-0.5 text-[9px] font-medium text-primary"
+              >
+                synced
+              </span>
+            )}
+          </div>
           <div className="truncate text-[11px] text-on-surface-variant">{candidate.role_title}</div>
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-2">
         {latestCall ? (
-          <CallStatusBadge status={latestCall.status} />
+          <>
+            <TriageBadge triage={latestCall.triage} />
+            <CallStatusBadge status={latestCall.status} />
+          </>
         ) : (
           <TriggerCallButton
             candidate={candidate}
