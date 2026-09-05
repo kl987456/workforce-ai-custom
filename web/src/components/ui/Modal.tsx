@@ -32,7 +32,7 @@ export function Modal({
             transition={{ duration: 0.15 }}
           />
           <motion.div
-            className={`relative flex max-h-[85vh] w-full flex-col gap-4 overflow-y-auto rounded-2xl bg-surface-container-lowest p-6 shadow-xl ${
+            className={`relative flex max-h-[85vh] w-full flex-col rounded-2xl bg-surface-container-lowest shadow-xl ${
               wide ? "max-w-lg" : "max-w-md"
             }`}
             initial={{ opacity: 0, scale: 0.94, y: 14 }}
@@ -46,14 +46,18 @@ export function Modal({
             >
               <X className="h-4 w-4" />
             </button>
-            <div>
+            {/* Header and footer stay pinned; only this middle section scrolls —
+                so the action buttons are never pushed off-screen on short viewports. */}
+            <div className="p-6 pb-0">
               <h2 className="text-base font-semibold text-on-surface">{title}</h2>
               {description && (
                 <p className="mt-1 text-sm text-on-surface-variant">{description}</p>
               )}
             </div>
-            <div className="flex flex-col gap-3">{children}</div>
-            {footer && <div className="flex justify-end gap-2 pt-1">{footer}</div>}
+            <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-6">{children}</div>
+            {footer && (
+              <div className="flex justify-end gap-2 border-t border-outline-variant/20 p-6 pt-4">{footer}</div>
+            )}
           </motion.div>
         </div>
       )}
